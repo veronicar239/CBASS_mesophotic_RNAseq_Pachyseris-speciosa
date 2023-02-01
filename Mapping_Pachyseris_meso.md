@@ -764,6 +764,9 @@ mv 39006_Cladocopium_goreaui.C_suffixed.fasta 39006_Cladocopium_goreaui.Chen_suf
 
 ## Coral Host *Pachyseris speciosa* genome (Bongaerts)
 
+[Published genome: Bongaerts et al. (2021)](https://www.cell.com/current-biology/fulltext/S0960-9822(21)00367-5)
+[NCBI project PRJNA686157](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA686157)
+
 > /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/genome_Bongaerts/
 
 ```
@@ -1086,6 +1089,9 @@ rmsingletons_cmd = 'samtools view -@ 8 -F 0x08 -b %s > %s' %(markdup_bam,nosingl
 
 # SALMON quantification
 ## Count expression - generate counts files
+### Take 1 (testing for first time)
+
+*See next section for how it was actually run.*
 
 > /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/aligned_hybridref/
 
@@ -1123,6 +1129,8 @@ sbatch salmon_quant_dedup.sh
 > /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/aligned_hybridref/salmon_quant/
 
 Output: quant.sf
+
+*Problem that all individuals merged into one file, no individual sample-level data*
 
 CONTINUE HERE
 
@@ -1177,92 +1185,221 @@ Katie ran multiple batches with multiple files
 
 --------------------------------------------------------------------------------------------
 
+# Combined STAR deduplication and SALMON quantification
+## Count expression - generate counts files
+### Final
 
-
-? Don't need (doing salmon_quant above) 
-(from my old analysis)
-
-## Count expression 
-Generate counts file for all samples
-
-> 
+> /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/aligned_hybridref/
 
 ```
-nano countexpression_hybridref.sh
+enable_lmod
+module load container_env salmon
+module avail salmon
+```
+salmon/1.9.0
+
+From Dan: generate a line by line bash shell script with one line for each file so you can specify the -o directory naming. 
+Basically, you'll have your sbatch header and then a line for each .bam file for deduping and salmon quanting
+
+ODU HPC cluster:
+*All of the containers in our environment follow a naming scheme where crun will just run them, but crun.<program name> will explicitly also run that program’s container if you have loaded the associated module.  This is to help people with workflows that involve multiple containers, because if I module load several times, crun would only let me run the last loaded module.*
+
+But script failed because "crun.STAR: command not found".
+
+NB: Script below does not include 20220228_Meso_Pspe_10_C_T2_Pspe_CgoreauiAligned.out.bam because already ran this file as a test.
+
+```
+nano STAR-dedup_salmon-quant.sh
 ```
 
 ```
 #!/bin/bash -l
 
-#SBATCH -o countexpression_hybridref.txt
-#SBATCH -n 6
+#SBATCH -o 2023-02-01_STAR-dedup_salmon-quant.txt
+#SBATCH -n 16
+#SBATCH -N 1
 #SBATCH --mail-user=vradice@odu.edu
 #SBATCH --mail-type=ALL
-#SBATCH --job-name=countexpression_hybridref
+#SBATCH --job-name=salmon_quant
 
 enable_lmod
-module load container_env python
+module load container_env salmon/1.9.0
+module load container_env star
 
-python2 /cm/shared/courses/dbarshis/barshislab/CCourtney/PoloRNASeq/scripts/countxpression_SB_advbioinf.py /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/*_hybridref.sam
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_10_C_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_10_C_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_10_C_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_10_C_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_10_H_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_10_H_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_10_H_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_10_H_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_10_L_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_10_L_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_10_L_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_10_L_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_10_L_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_10_L_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_10_L_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_10_L_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_10_M_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_10_M_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_10_M_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_10_M_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_10_M_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_10_M_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_10_M_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_10_M_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_10_T0_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_10_T0_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_10_T0_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_10_T0_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_10_TF_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_10_TF_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_10_TF_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_10_TF_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_1_C_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_1_C_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_1_C_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_1_C_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_1_C_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_1_C_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_1_C_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_1_C_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_1_H_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_1_H_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_1_H_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_1_H_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_1_L_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_1_L_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_1_L_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_1_L_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_1_L_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_1_L_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_1_L_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_1_L_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_1_M_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_1_M_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_1_M_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_1_M_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_1_M_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_1_M_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_1_M_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_1_M_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_1_T0_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_1_T0_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_1_T0_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_1_T0_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_1_TF_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_1_TF_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_1_TF_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_1_TF_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_3_C_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_3_C_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_3_C_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_3_C_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_3_H_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_3_H_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_3_H_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_3_H_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_3_L_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_3_L_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_3_L_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_3_L_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_3_L_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_3_L_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_3_L_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_3_L_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_3_M_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_3_M_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_3_M_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_3_M_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_3_M_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_3_M_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_3_M_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_3_M_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_3_T0_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_3_T0_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_3_T0_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_3_T0_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_3_TF_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_3_TF_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_3_TF_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_3_TF_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_6_C_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_6_C_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_6_C_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_6_C_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_6_C_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_6_C_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_6_C_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_6_C_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_6_H_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_6_H_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_6_H_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_6_H_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_6_L_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_6_L_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_6_L_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_6_L_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_6_L_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_6_L_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_6_L_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_6_L_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_6_M_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_6_M_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_6_M_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_6_M_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_6_M_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_6_M_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_6_M_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_6_M_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_6_T0_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_6_T0_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_6_T0_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_6_T0_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_6_TF_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_6_TF_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_6_TF_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_6_TF_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_8_C_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_8_C_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_8_C_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_8_C_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_8_C_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_8_C_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_8_C_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_8_C_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_8_H_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_8_H_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_8_H_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_8_H_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_8_L_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_8_L_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_8_L_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_8_L_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_8_L_T3_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_8_L_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_8_L_T3_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_8_L_T3_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_8_M_T2_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_8_M_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_8_M_T2_Pspe_CgoreauiAligned_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_8_M_T2_Pspe_CgoreauiAligned_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_8_T0_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_8_T0_Pspe_CgoreauiAligned.out_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_8_T0_Pspe_CgoreauiAligned.out_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_8_T0_Pspe_CgoreauiAligned.out_deduped_salmon_quant
+
+STAR --runThreadN 32 --runMode inputAlignmentsFromBAM --bamRemoveDuplicatesType UniqueIdenticalNotMulti --inputBAMfile 20220228_Meso_Pspe_8_TF_Pspe_CgoreauiAligned.out.bam --outFileNamePrefix 20220228_Meso_Pspe_8_TF_Pspe_CgoreauiAligned.out_deduped.bamProcessed.out.bam
+
+crun.salmon quant -t /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Pachyseris_speciosa/data_RNAseq/Pspe_Cgoreaui_hybridref.fasta --libType A -a 20220228_Meso_Pspe_8_TF_Pspe_CgoreauiAligned.out_deduped.bamProcessed.out.bam -o 20220228_Meso_Pspe_8_TF_Pspe_CgoreauiAligned
 ```
 
 ```
-sbatch countexpression_hybridref.sh
+sbatch STAR-dedup_salmon-quant.sh
 ```
 
---------------------------------------------------------------------------------------------
-
-?
-
-## Parse expression to table
-
-> /cm/shared/courses/dbarshis/barshislab/VRad/taxons/Siderastrea_siderea/mapped_hybridref_final/
-
-*In this case it is contig name list (in the order that the hybridref was concatenated*
-19222_Sid_GoodCoral_500lnThresh_Final.fasta
-52508_Breviolum_Sid-radians_Avila-Medina_500lnThresh_LongestIso_renamed.fasta
-47262_Davies_Cladocopium_LongestContig-500_renamed.fasta
-
-```
-grep -o -E "(Siderastrea_\w+.\w+)" 19222_Sid_GoodCoral_500lnThresh_Final.fasta | head
-grep -o -E "(Siderastrea_\w+.\w+)" 19222_Sid_GoodCoral_500lnThresh_Final.fasta > 19222_Sid_GoodCoral_500lnThresh_Final_contigNames.txt
-```
-
-File:  ContigList_Sid_hybridref.txt
-
-#### Make contig list .txt file
-Format should be (one column):
-
-GeneName |
---- |
-gene1name |
-gene2name |
-gene3name |
-gene4name |
-
-```
-nano ParseExpression.sh
-```
-
-```
-#!/bin/bash -l
-
-#SBATCH -o ParseExpression.txt
-#SBATCH -n 6
-#SBATCH --mail-user=vradice@odu.edu
-#SBATCH --mail-type=END
-#SBATCH --job-name=ParseExpression
-
-/cm/shared/courses/dbarshis/18AdvBioinf/scripts/ParseExpression2BigTable_advbioinf.py ContigList_Sid_hybridref.txt Sid_hybridref_final_counts.txt nomatch *_nof_hybridref_counts.txt
-```
-
-```
-sbatch ParseExpression.sh
-```
-
-
-#### Output 
-Sid_hybridref_final_counts.txt
+CONTINUE HERE
 
 --------------------------------------------------------------------------------------------
 
@@ -1290,8 +1427,9 @@ If not accounted for, these biases can lead to unacceptable false positive rates
 
 --------------------------------------------------------------------------------------------
 
-
 # Move on to DESeq2 in R
+
+Import the salmon quant counts into DESeq2 with tximport.
 
 ---------------------------------------------------------------------------------------------
 
